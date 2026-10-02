@@ -2,7 +2,7 @@
   "mcpServers": {
     "resume-match-finder": {
       "command": "uv",
-      "args": ["run", "--directory", "/Users/mpant/personal-projects/resume-match-finder-mcp", "python", "server.py"]
+      "args": ["run", "python", "server.py"]
     }
   }
 }
