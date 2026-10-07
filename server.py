@@ -9,6 +9,9 @@ from mcp.types import ToolAnnotations
 
 import greenhouse
 import matcher
+import smtplib
+import mailer
+import re
 
 mcp = MCPServer("resume-match-finder") #define mcp server name here
 
@@ -77,13 +80,15 @@ def match_resume_to_job(company: str, job_id: int) -> dict:
     return {"company": board_token, "job_id": job_id, "title": job["title"], "url": job["url"], **result}
 
 #capability 3: find_matching_jobs
-SENIOR_TITLES = ["staff", "principal", "director", "manager", "head of", "intern"]
+SENIOR_TITLES = re.compile(
+    r"\b(staff|principal|director|manager|head of|vp|vice president|chief|distinguished|fellow|intern)\b",
+    re.IGNORECASE,
+)
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True))
 def find_matching_jobs(
     companies: list[str],
     title_keywords: list[str] | None = None,
-    skip_senior_titles: bool = True,
-    min_score: int = 80,
+    min_score: int = 60,
     max_jobs: int = 5,
 ) -> dict:
     """Find and score Greenhouse jobs across companies, sorted by match %.
@@ -91,11 +96,11 @@ def find_matching_jobs(
     Pipeline: list jobs -> title filters -> drop duplicate titles -> newest first ->
     score up to max_jobs in parallel (Tool 2) -> keep those >= min_score -> sort.
 
-    companies: Greenhouse board tokens, e.g. ["stripe", "airbnb"].
-    title_keywords: optional title substrings, e.g. ["data engineer"].
-    skip_senior_titles: skip Staff/Principal/Director/Manager/Head of/Intern titles (default True).
-    min_score: minimum match_percentage to include (default 80).
-    max_jobs: max jobs to score in total (default 5). Each scored job calls LLM API.
+    companies: e.g. ["stripe", "airbnb"].
+    title_keywords: optional e.g. ["data engineer"].
+    skip_senior_titles: default True
+    min_score: default 80
+    max_jobs: max jobs to score(default 5). Each scored job calls LLM API.
     """
     if not companies:
         raise ToolError("Pass at least one company board token, e.g. companies=['stripe'].")
@@ -119,8 +124,7 @@ def find_matching_jobs(
             jobs = greenhouse.filter_by_title(jobs, title_keywords)
 
         # drop titles that contain words in SENIOR_TITLES list
-        if skip_senior_titles:
-            jobs = [j for j in jobs if not greenhouse.filter_by_title([j], SENIOR_TITLES)]
+        jobs = [j for j in jobs if not SENIOR_TITLES.search(j["title"])]  # skip senior/intern titles
         
         for job in jobs:
             key = (board_token, job["title"].strip().lower())
@@ -160,5 +164,19 @@ def find_matching_jobs(
         "matches": matches,
         "errors": errors,
     }
+    
+#capability 4: send_matches over email 
+@mcp.tool()
+def send_job_matches_email(matches: list[dict]) -> str:
+    """Email job matches to the address set in .env (EMAIL_TO).
+
+    matches: the "matches" list returned by find_matching_jobs. 
+    """
+    try:
+        return mailer.send_matches(matches)
+    except (ValueError, smtplib.SMTPException, OSError) as error:
+        raise ToolError(str(error)) from error
+
+    
 if __name__ == "__main__":
     mcp.run()

@@ -104,10 +104,14 @@ Cursor ─ calls ─▶ find_matching_jobs(companies, title_keywords, skip_senio
 
 No `companies.yaml` yet — pass board tokens explicitly, e.g. `["stripe"]`.
 
-## Not done yet
+### 6. Tool 4: `send_job_matches_email`
 
-- Tool 4: `send_job_matches_email`
-- `companies.yaml` (friendly name → board token)
+```
+Cursor ─ calls ─▶ send_job_matches_email(matches)
+  1. mailer.build_html / build_text from the matches list
+  2. Gmail SMTP (smtp.gmail.com) with credentials from .env
+  3. Recipient 
+```
 
 ## Useful commands
 
