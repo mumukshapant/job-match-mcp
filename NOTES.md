@@ -68,9 +68,9 @@ Cursor ─ calls ─▶ match_resume_to_job(company, job_id)
 
 **Scoring rubric (weights):** skills 40, experience 25, responsibilities 20, education 5, keywords 10.
 
-**Caps:** e.g. years short by 2+ → cap 65; more than a third of required skills missing → cap 70.
+**Caps (in code):** years short by 2+ → cap 65; more than a third of required skills missing → cap 70. Listed under `blockers`.
 
-**Evidence:** not required and not returned. `matched_skills` is a list of skill names only. Keywords still use literal whole-word search in the resume (Python).
+**Return shape (plus company / job_id / title / url from the tool):** `match_percentage`, `breakdown`, `blockers`, `matched_skills`, `missing_required`, `missing_preferred`, `keywords_missing`, `summary`.
 
 **Untrusted JD text:** three guards so JD content can’t rewrite the score:
 
