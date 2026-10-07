@@ -13,3 +13,5 @@ resume.txt
 .venv/
 __pycache__/
 _last_matches.json
+logs/
+email_preview.html

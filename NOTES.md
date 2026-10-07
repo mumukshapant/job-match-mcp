@@ -110,8 +110,35 @@ No `companies.yaml` yet — pass board tokens explicitly, e.g. `["stripe"]`.
 Cursor ─ calls ─▶ send_job_matches_email(matches)
   1. mailer.build_html / build_text from the matches list
   2. Gmail SMTP (smtp.gmail.com) with credentials from .env
-  3. Recipient 
+  3. Recipients from EMAIL_TO (comma-separated)
 ```
+
+### 7. Daily automation (8:30 AM ET)
+
+[`run_daily.py`](run_daily.py) = Tool 3 → email if matches.
+
+#### GitHub Actions (works when laptop is off)
+
+Workflow: [`.github/workflows/daily.yml`](.github/workflows/daily.yml)
+
+1. Keep the repo **private** (resume is stored as a secret).
+2. Push the workflow to GitHub.
+3. **Settings → Secrets and variables → Actions** — add:
+
+| Secret | Purpose |
+|--------|---------|
+| `ANTHROPIC_API_KEY` | Claude scoring |
+| `GMAIL_ADDRESS` | SMTP from |
+| `GMAIL_APP_PASSWORD` | 16-char App Password |
+| `EMAIL_TO` | Recipients (comma-separated OK) |
+| `RESUME_TXT` | Full text of your `resume.txt` |
+
+Optional: `DAILY_COMPANIES`, `DAILY_TITLE_KEYWORDS`, `DAILY_MIN_SCORE`, `DAILY_MAX_JOBS`.
+
+4. **Actions → Daily job matches email → Run workflow** to test.
+5. Schedule fires at 8:30 AM America/New_York (DST-safe).
+
+Local one-off: `uv run python run_daily.py` · Logs: `logs/daily.log`.
 
 ## Useful commands
 
@@ -127,4 +154,7 @@ uv run python -c 'import greenhouse, matcher, json; job = greenhouse.fetch_job_d
 
 # Tool 3 — pipeline (scores up to max_jobs; costs Anthropic calls)
 uv run python -c 'import server, json; print(json.dumps(server.find_matching_jobs(["databricks"], title_keywords=["data engineer"], min_score=0, max_jobs=1), indent=2))'
+
+# Daily job (find + email; uses Anthropic)
+uv run python run_daily.py
 ```
