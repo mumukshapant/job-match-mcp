@@ -1,0 +1,105 @@
+# Runs daily at 8:30 AM America/New_York even when your laptop is off.
+# GitHub cron is UTC-only, so we trigger at both 12:30 and 13:30 UTC and
+# exit early unless local Eastern time is 08:30 (handles DST).
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   ANTHROPIC_API_KEY
+#   GMAIL_ADDRESS
+#   GMAIL_APP_PASSWORD
+#   EMAIL_TO              (comma-separated OK)
+#   RESUME_TXT            (full resume text; written to resume.txt at runtime)
+#
+# Optional secrets (defaults match run_daily.py):
+#   DAILY_COMPANIES       e.g. databricks,stripe
+#   DAILY_TITLE_KEYWORDS  e.g. data engineer
+#   DAILY_MIN_SCORE       e.g. 60
+#   DAILY_MAX_JOBS        e.g. 5
+
+name: Daily job matches email
+
+on:
+  schedule:
+    - cron: "30 12 * * *"   # 8:30 AM EDT
+    - cron: "30 13 * * *"   # 8:30 AM EST
+  workflow_dispatch:        # Run manually from the Actions tab
+
+jobs:
+  find-and-email:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check 8:30 America/New_York (skip the off-DST cron)
+        if: github.event_name == 'schedule'
+        run: |
+          et_hm=$(TZ=America/New_York date +%H:%M)
+          echo "Eastern time now: $et_hm"
+          if [ "$et_hm" != "08:30" ]; then
+            echo "Not 08:30 ET — skipping this cron slot."
+            exit 0
+          fi
+          echo "IT_IS_ET_830=1" >> "$GITHUB_ENV"
+
+      - name: Continue only at 08:30 ET (or manual run)
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${IT_IS_ET_830}" = "1" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        if: steps.gate.outputs.run == 'true'
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        if: steps.gate.outputs.run == 'true'
+        run: uv python install 3.13
+
+      - name: Write secrets to .env and resume.txt
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          RESUME_TXT: ${{ secrets.RESUME_TXT }}
+          DAILY_COMPANIES: ${{ secrets.DAILY_COMPANIES }}
+          DAILY_TITLE_KEYWORDS: ${{ secrets.DAILY_TITLE_KEYWORDS }}
+          DAILY_MIN_SCORE: ${{ secrets.DAILY_MIN_SCORE }}
+          DAILY_MAX_JOBS: ${{ secrets.DAILY_MAX_JOBS }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          required = ["ANTHROPIC_API_KEY", "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "EMAIL_TO", "RESUME_TXT"]
+          missing = [k for k in required if not os.environ.get(k)]
+          if missing:
+              raise SystemExit(f"Missing GitHub secrets: {', '.join(missing)}")
+
+          env_lines = [
+              f"ANTHROPIC_API_KEY={os.environ['ANTHROPIC_API_KEY']}",
+              f"GMAIL_ADDRESS={os.environ['GMAIL_ADDRESS']}",
+              f"GMAIL_APP_PASSWORD={os.environ['GMAIL_APP_PASSWORD']}",
+              f"EMAIL_TO={os.environ['EMAIL_TO']}",
+              f"DAILY_COMPANIES={os.environ.get('DAILY_COMPANIES') or 'databricks,stripe'}",
+              f"DAILY_TITLE_KEYWORDS={os.environ.get('DAILY_TITLE_KEYWORDS') or 'data engineer'}",
+              f"DAILY_MIN_SCORE={os.environ.get('DAILY_MIN_SCORE') or '60'}",
+              f"DAILY_MAX_JOBS={os.environ.get('DAILY_MAX_JOBS') or '5'}",
+          ]
+          Path(".env").write_text("\n".join(env_lines) + "\n")
+          Path("resume.txt").write_text(os.environ["RESUME_TXT"])
+          print("Wrote .env and resume.txt")
+          PY
+
+      - name: Install deps and run daily job
+        if: steps.gate.outputs.run == 'true'
+        run: uv run python run_daily.py
