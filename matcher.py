@@ -24,6 +24,21 @@ CAP_SHORT_ON_YEARS = 65     # resume is 2+ years short of the stated minimum
 CAP_MISSING_REQUIRED = 70   # more than a third of required skills are missing
 
 
+VENDOR_PREFIXES = {"amazon", "aws", "apache", "google", "gcp", "microsoft", "azure"}
+GENERIC_WORDS = {
+    "cloud", "analytics", "sql", "functions", "storage", "search", "data",
+    "sheets", "docs", "drive", "web", "services", "platform",
+}
+
+
+def name_variants(term: str) -> list[str]:
+    """'Amazon Redshift' -> ['Amazon Redshift', 'Redshift']. 'Google Cloud' stays as is."""
+    words = term.split()
+    if len(words) == 2 and words[0].lower() in VENDOR_PREFIXES and words[1].lower() not in GENERIC_WORDS:
+        return [term, words[1]]
+    return [term]
+
+
 # ---------- 1. What the LLM must return (its "form" to fill in) ----------
 
 class SkillCheck(BaseModel):
@@ -41,6 +56,15 @@ class Experience(BaseModel):
     candidate_years: float = Field(description="Total years of professional experience shown on the resume")
     domain_match: Literal["strong", "partial", "none"] = Field(description="How close the resume's industry/domain is to the job's")
 
+# prompt for the LLM to find keywords in the job description
+class Keyword(BaseModel):
+    term: str = Field(description="Technical keyword as written in the job description")
+    resume_wording: str = Field(
+        description="The exact word or phrase the resume uses for this SAME thing "
+        "(may be an abbreviation, full form or variant, e.g. JD 'change data capture' -> resume 'CDC'). "
+        "Empty if the resume does not mention it. Never a different tool (Java is not JavaScript)."
+    )
+
 
 class Evaluation(BaseModel):
     required_skills: list[SkillCheck] = Field(description="Skills from the required/minimum qualifications")
@@ -48,7 +72,7 @@ class Evaluation(BaseModel):
     responsibilities: list[ResponsibilityCheck] = Field(description="The job's 5 most important responsibilities")
     experience: Experience
     education: Literal["met", "equivalent", "not_met", "not_specified"]
-    ats_keywords: list[str] = Field(description="Up to 20 technical keywords from the job description: tools, languages, platforms")
+    ats_keywords: list[Keyword] = Field(description="Up to 20 technical keywords from the job description: tools, languages, platforms")
     summary: str = Field(description="2-3 sentences: strongest matches and biggest gaps")
 
 
@@ -112,9 +136,18 @@ def score(ev: Evaluation, resume_text: str) -> dict:
 
     education = 0.0 if ev.education == "not_met" else 1.0
 
-    # Keywords: pure code, a literal whole-word search in the resume (what an ATS does)
+    # Keywords: whole-word search; LLM may supply the resume's wording for the same term
+    resume_lower = resume_text.lower()
+
+    def mentioned(name: str) -> bool:  # whole word, optional plural "s"/"es"
+        return re.search(rf"(?<!\w){re.escape(name.lower())}(?:s|es)?(?!\w)", resume_lower) is not None
+
     terms = ev.ats_keywords[:20]
-    in_resume = [t for t in terms if re.search(rf"(?<!\w){re.escape(t.lower())}(?!\w)", resume_text.lower())]
+    in_resume = [
+        k for k in terms
+        if any(mentioned(n) for n in name_variants(k.term))
+        or (k.resume_wording and mentioned(k.resume_wording))
+    ]
     keywords = len(in_resume) / len(terms) if terms else 0.0
 
     parts = {"skills": skills, "experience": experience, "responsibilities": responsibilities,
@@ -137,7 +170,7 @@ def score(ev: Evaluation, resume_text: str) -> dict:
         "matched_skills": [s.skill for s in req_hit + pref_hit],
         "missing_required": missing_required,
         "missing_preferred": [s.skill for s in ev.preferred_skills if s not in pref_hit],
-        "keywords_missing": [t for t in terms if t not in in_resume],
+        "keywords_missing": [k.term for k in terms if k not in in_resume],
         "summary": ev.summary,
     }
 
