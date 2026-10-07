@@ -8,3 +8,7 @@ dist/
 *.egg-info/
 .env
 .DS_Store
+.env
+resume.txt
+.venv/
+__pycache__/
