@@ -13,6 +13,8 @@ import smtplib
 import mailer
 import re
 
+from datetime import datetime, timedelta, timezone
+
 mcp = MCPServer("resume-match-finder") #define mcp server name here
 
 @mcp.tool()
@@ -84,12 +86,20 @@ SENIOR_TITLES = re.compile(
     r"\b(staff|principal|director|manager|head of|vp|vice president|chief|distinguished|fellow|intern)\b",
     re.IGNORECASE,
 )
+
+
+def posted_at(job: dict) -> datetime:
+    """When the job was first published"""
+    return datetime.fromisoformat(job.get("first_published") or job["updated_at"])
+
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True))
 def find_matching_jobs(
     companies: list[str],
     title_keywords: list[str] | None = None,
     min_score: int = 60,
     max_jobs: int = 5,
+    posted_within_days: int | None = None,
+    skip_job_ids: list[int] | None = None,
 ) -> dict:
     """Find and score Greenhouse jobs across companies, sorted by match %.
 
@@ -111,6 +121,9 @@ def find_matching_jobs(
     candidates: list[dict] = []
     errors: list[str] = []
     seen: set[tuple[str, str]] = set()
+    skip = set(skip_job_ids or [])
+    cutoff = datetime.now(timezone.utc) - timedelta(days=posted_within_days) if posted_within_days else None
+
     for company in companies:
         board_token = company.strip().lower()
         if not board_token:
@@ -125,16 +138,19 @@ def find_matching_jobs(
 
         # drop titles that contain words in SENIOR_TITLES list
         jobs = [j for j in jobs if not SENIOR_TITLES.search(j["title"])]  # skip senior/intern titles
-        
+        jobs = [j for j in jobs if j["id"] not in skip]  # already scored on an earlier run
+        if cutoff:
+            jobs = [j for j in jobs if posted_at(j) >= cutoff]
+
         for job in jobs:
             key = (board_token, job["title"].strip().lower())
             if key in seen:  # DEDUPLICATE: same title posted in several locations: score it once. Avoid duplicate scoring of the same job.
                 continue
             seen.add(key)
-            candidates.append({"company": board_token, "id": job["id"], "updated_at": job["updated_at"]})
+            candidates.append({"company": board_token, "id": job["id"], "posted": posted_at(job)})
 
     # Newest postings first, so max_jobs picks recent jobs across all companies
-    candidates.sort(key=lambda c: c["updated_at"], reverse=True)
+    candidates.sort(key=lambda c: c["posted"], reverse=True)
     to_score = candidates[:max_jobs]
 
     # 2) Score candidates in parallel: each call mostly waits on the network
@@ -163,6 +179,7 @@ def find_matching_jobs(
         "returned": len(matches),
         "matches": matches,
         "errors": errors,
+        "scored_job_ids": [r["job_id"] for r in scored],
     }
     
 #capability 4: send_matches over email 

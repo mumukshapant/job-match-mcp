@@ -52,3 +52,9 @@ def html_to_text(raw: str) -> str:
     text = re.sub(r"[ \t\xa0]+", " ", text)                     # squeeze repeated spaces
     text = re.sub(r"\n\s*\n+", "\n\n", text)                    # squeeze blank lines
     return text.strip()
+
+# check if the board exists
+def board_name(board_token: str) -> str | None:
+    """The company's name if this Greenhouse board exists, else None."""
+    response = httpx.get(f"{BASE_URL}/{board_token}", timeout=10.0)
+    return response.json().get("name", board_token) if response.status_code == 200 else None

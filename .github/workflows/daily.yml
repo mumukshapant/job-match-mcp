@@ -1,29 +1,51 @@
-# Runs daily around 8:30 AM America/New_York even when the system is off.
+# Runs daily around 8:30 AM America/New_York even when system is offline.
 
 name: Daily job matches email
 
 on:
   schedule:
-    - cron: "55 14 * * *"   # TESTING: 10:45 AM America/New_York (EDT = UTC-4)
-  workflow_dispatch:        # Run manually from the Actions tab
+    - cron: "30 16 * * *"   # TESTING // will revert to~8:30 AM EDT
+  workflow_dispatch:        
 
 jobs:
   find-and-email:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Gate — run in 8 AM Eastern hour (or always if manual)
+        id: gate
+        run: |
+          et_hm=$(TZ=America/New_York date +%H:%M)
+          et_hour=$(TZ=America/New_York date +%H)
+          echo "Eastern time now: $et_hm (event=${{ github.event_name }})"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual run — proceeding."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [ "$et_hour" = "12" ]; then
+            # Matches cron "30 16" (16:30 UTC = 12:30 PM EDT). Change to "08" when reverting to 8:30 AM ET.
+            echo "Within 12 PM ET hour — proceeding (GitHub cron may be a few minutes late)."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping: want 12 PM ET hour, got $et_hm (heavy delay or wrong slot)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Install uv
+        if: steps.gate.outputs.run == 'true'
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
 
       - name: Set up Python
+        if: steps.gate.outputs.run == 'true'
         run: uv python install 3.13
 
       - name: Write secrets to .env and resume.txt
+        if: steps.gate.outputs.run == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
@@ -61,6 +83,5 @@ jobs:
           PY
 
       - name: Install deps and run daily job
-        run: |
-          echo "Eastern time now: $(TZ=America/New_York date)"
-          uv run python run_daily.py
+        if: steps.gate.outputs.run == 'true'
+        run: uv run python run_daily.py
