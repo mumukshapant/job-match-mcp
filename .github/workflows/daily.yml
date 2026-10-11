@@ -1,27 +1,10 @@
-# Runs daily around 8:30 AM America/New_York even when your laptop is off.
-# GitHub cron is UTC-only and often starts several minutes (sometimes longer) late,
-# so we trigger at both DST offsets and accept any run while Eastern hour is 8
-# (08:00–08:59). That skips the wrong-season cron without requiring exact :30.
-#
-# Required repo secrets (Settings → Secrets and variables → Actions):
-#   ANTHROPIC_API_KEY
-#   GMAIL_ADDRESS
-#   GMAIL_APP_PASSWORD
-#   EMAIL_TO              (comma-separated OK)
-#   RESUME_TXT            (full resume text; written to resume.txt at runtime)
-#
-# Optional secrets (defaults match run_daily.py):
-#   DAILY_COMPANIES       e.g. databricks,stripe
-#   DAILY_TITLE_KEYWORDS  e.g. data engineer
-#   DAILY_MIN_SCORE       e.g. 60
-#   DAILY_MAX_JOBS        e.g. 5
+# Runs daily around 8:30 AM America/New_York even when the system is off.
 
 name: Daily job matches email
 
 on:
   schedule:
-    - cron: "30 12 * * *"   # ~8:30 AM EDT
-    - cron: "30 13 * * *"   # ~8:30 AM EST
+    - cron: "40 2 * * *"   # # TESTING ~8:30 AM EDT, cron in UTC timezone
   workflow_dispatch:        # Run manually from the Actions tab
 
 jobs:
@@ -29,39 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Gate — run in 8 AM Eastern hour (or always if manual)
-        id: gate
-        run: |
-          et_hm=$(TZ=America/New_York date +%H:%M)
-          et_hour=$(TZ=America/New_York date +%H)
-          echo "Eastern time now: $et_hm (event=${{ github.event_name }})"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual run — proceeding."
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          elif [ "$et_hour" = "08" ]; then
-            echo "Within 8 AM ET hour — proceeding (GitHub cron may be a few minutes late)."
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Skipping: want 8 AM ET hour, got $et_hm (other DST cron slot or heavy delay)."
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout
-        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Install uv
-        if: steps.gate.outputs.run == 'true'
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
 
       - name: Set up Python
-        if: steps.gate.outputs.run == 'true'
         run: uv python install 3.13
 
       - name: Write secrets to .env and resume.txt
-        if: steps.gate.outputs.run == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
@@ -99,5 +61,6 @@ jobs:
           PY
 
       - name: Install deps and run daily job
-        if: steps.gate.outputs.run == 'true'
-        run: uv run python run_daily.py
+        run: |
+          echo "Eastern time now: $(TZ=America/New_York date)"
+          uv run python run_daily.py
