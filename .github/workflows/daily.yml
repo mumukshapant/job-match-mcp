@@ -4,7 +4,7 @@ name: Daily job matches email
 
 on:
   schedule:
-    - cron: "40 2 * * *"   # # TESTING ~8:30 AM EDT, cron in UTC timezone
+    - cron: "45 14 * * *"   # TESTING: 10:45 AM America/New_York (EDT = UTC-4)
   workflow_dispatch:        # Run manually from the Actions tab
 
 jobs:
