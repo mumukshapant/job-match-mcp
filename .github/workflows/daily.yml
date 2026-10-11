@@ -4,7 +4,7 @@ name: Daily job matches email
 
 on:
   schedule:
-    - cron: "30 16 * * *"   # TESTING // will revert to~8:30 AM EDT
+    - cron: "59 16 * * *"   # TESTING // will revert to~8:30 AM EDT
   workflow_dispatch:        
 
 jobs:
@@ -48,6 +48,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
@@ -62,13 +63,21 @@ jobs:
           import os
           from pathlib import Path
 
-          required = ["ANTHROPIC_API_KEY", "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "EMAIL_TO", "RESUME_TXT"]
+          required = [
+              "ANTHROPIC_API_KEY",
+              "BRAVE_API_KEY",
+              "GMAIL_ADDRESS",
+              "GMAIL_APP_PASSWORD",
+              "EMAIL_TO",
+              "RESUME_TXT",
+          ]
           missing = [k for k in required if not os.environ.get(k)]
           if missing:
               raise SystemExit(f"Missing GitHub secrets: {', '.join(missing)}")
 
           env_lines = [
               f"ANTHROPIC_API_KEY={os.environ['ANTHROPIC_API_KEY']}",
+              f"BRAVE_API_KEY={os.environ['BRAVE_API_KEY']}",
               f"GMAIL_ADDRESS={os.environ['GMAIL_ADDRESS']}",
               f"GMAIL_APP_PASSWORD={os.environ['GMAIL_APP_PASSWORD']}",
               f"EMAIL_TO={os.environ['EMAIL_TO']}",
