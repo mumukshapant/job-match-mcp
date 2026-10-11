@@ -25,6 +25,36 @@ def filter_by_title(jobs: list[dict], keywords: list[str]) -> list[dict]:
     return [job for job in jobs if any(k in job["title"].lower() for k in lowered)]
 
 
+# Free-text location.name markers (Greenhouse has no country code on the list API).
+_US_COUNTRY = re.compile(
+    r"\b(united states|usa|u\.s\.a\.?|u\.s\.?|remote from the us)\b",
+    re.IGNORECASE,
+)
+_US_STATES = re.compile(
+    r"(?<![A-Za-z])("
+    r"AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|"
+    r"MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC"
+    r")(?![A-Za-z])"
+)
+_US_CITIES = re.compile(
+    r"\b("
+    r"new york(?: city)?|nyc|san francisco|sf|seattle|sea|chicago|chi|boston|"
+    r"los angeles|la|austin|denver|atlanta|miami|dallas|houston|philadelphia|"
+    r"phoenix|san diego|san jose|oakland|portland|washington(?:,? d\.?c\.?)?|"
+    r"bay area|remote[- ]?us|us[- ]?remote"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def is_usa_location(name: str) -> bool:
+    """True if Greenhouse location.name looks US-based. Bare 'Remote' is False."""
+    text = " ".join((name or "").split())
+    if not text:
+        return False
+    return bool(_US_COUNTRY.search(text) or _US_STATES.search(text) or _US_CITIES.search(text))
+
+
 def fetch_job_description(board_token: str, job_id: int) -> dict:
     """Return one job's title, URL, and description as plain text."""
     url = f"{BASE_URL}/{board_token}/jobs/{job_id}"

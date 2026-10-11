@@ -138,6 +138,10 @@ def find_matching_jobs(
 
         # drop titles that contain words in SENIOR_TITLES list
         jobs = [j for j in jobs if not SENIOR_TITLES.search(j["title"])]  # skip senior/intern titles
+        jobs = [
+            j for j in jobs
+            if greenhouse.is_usa_location((j.get("location") or {}).get("name", ""))
+        ]
         jobs = [j for j in jobs if j["id"] not in skip]  # already scored on an earlier run
         if cutoff:
             jobs = [j for j in jobs if posted_at(j) >= cutoff]
