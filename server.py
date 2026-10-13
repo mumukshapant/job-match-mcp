@@ -96,7 +96,7 @@ def posted_at(job: dict) -> datetime:
 def find_matching_jobs(
     companies: list[str],
     title_keywords: list[str] | None = None,
-    min_score: int = 60,
+    min_score: int = 40,
     max_jobs: int = 5,
     posted_within_days: int | None = None,
     skip_job_ids: list[int] | None = None,
@@ -109,7 +109,7 @@ def find_matching_jobs(
     companies: e.g. ["stripe", "airbnb"].
     title_keywords: optional e.g. ["data engineer"].
     skip_senior_titles: default True
-    min_score: default 80
+    min_score: default 40
     max_jobs: max jobs to score(default 5). Each scored job calls LLM API.
     """
     if not companies:

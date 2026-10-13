@@ -39,7 +39,7 @@ def main() -> int:
     import store
 
     title_keywords = _csv_list("DAILY_TITLE_KEYWORDS", "data engineer")
-    min_score = int(os.environ.get("DAILY_MIN_SCORE", "60"))
+    min_score = int(os.environ.get("DAILY_MIN_SCORE", "40"))
     max_jobs = int(os.environ.get("DAILY_MAX_JOBS", "5"))
     posted_within_days = int(os.environ.get("DAILY_POSTED_WITHIN_DAYS", "5"))
 

@@ -61,7 +61,7 @@ jobs:
               f"EMAIL_TO={os.environ['EMAIL_TO']}",
               f"DAILY_COMPANIES={os.environ.get('DAILY_COMPANIES') or 'databricks,stripe'}",
               f"DAILY_TITLE_KEYWORDS={os.environ.get('DAILY_TITLE_KEYWORDS') or 'data engineer'}",
-              f"DAILY_MIN_SCORE={os.environ.get('DAILY_MIN_SCORE') or '60'}",
+              f"DAILY_MIN_SCORE={os.environ.get('DAILY_MIN_SCORE') or '40'}",
               f"DAILY_MAX_JOBS={os.environ.get('DAILY_MAX_JOBS') or '5'}",
           ]
           Path(".env").write_text("\n".join(env_lines) + "\n")
