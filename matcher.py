@@ -15,7 +15,6 @@ from pydantic import BaseModel, Field
 PROJECT_DIR = Path(__file__).parent
 load_dotenv(PROJECT_DIR / ".env")  # puts ANTHROPIC_API_KEY from .env into os.environ
 
-RESUME_PATH = PROJECT_DIR / "resume.txt"
 DEFAULT_MODEL = "claude-sonnet-5-5"
 
 # TODO : Test and configure based on jobs 
@@ -86,12 +85,6 @@ Rules:
 
 
 # ---------- 2. Ask the LLM to fill in the form ----------
-
-def load_resume() -> str:
-    if not RESUME_PATH.exists():
-        raise ValueError(f"resume.txt not found at {RESUME_PATH}. Paste your resume text into it.")
-    return RESUME_PATH.read_text()
-
 
 def evaluate(job_text: str, resume_text: str) -> Evaluation:
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -175,6 +168,7 @@ def score(ev: Evaluation, resume_text: str) -> dict:
     }
 
 
-def match(job_text: str) -> dict:
-    resume_text = load_resume()
+def match(job_text: str, resume_text: str) -> dict:
+    if not resume_text or not resume_text.strip():
+        raise ValueError("resume_text is required; the server does not read a resume file.")
     return score(evaluate(job_text, resume_text), resume_text)

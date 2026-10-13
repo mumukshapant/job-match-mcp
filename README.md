@@ -7,6 +7,8 @@ Greenhouse-focused job matcher: discover boards, filter recent US roles, score t
 - **MCP tools** (Cursor): list Greenhouse jobs, score one job, find matches across companies, send email
 - **Daily run** (`run_daily.py` + GitHub Actions): Brave Search discovery → score new jobs → Gmail digest
 
+Resume text is passed in per call (MCP tool arg or `RESUME_TXT` env). It is not stored on the server.
+
 ## Setup (local)
 
 1. Install [uv](https://github.com/astral-sh/uv) and clone this repo.
@@ -18,14 +20,16 @@ BRAVE_API_KEY=...
 GMAIL_ADDRESS=...
 GMAIL_APP_PASSWORD=...
 EMAIL_TO=you@example.com
+RESUME_TXT=paste your full resume text here
 DAILY_COMPANIES=databricks,stripe
 DAILY_TITLE_KEYWORDS=data engineer
 DAILY_MIN_SCORE=60
 DAILY_MAX_JOBS=5
 ```
 
-3. Put your resume text in `resume.txt` (gitignored).
-4. Run the MCP server: `uv run python server.py`
+`RESUME_TXT` is required for the daily script. For MCP tools, pass `resume_text` in each call (the server does not read a resume file).
+
+3. Run the MCP server: `uv run python server.py`
 
 ### Cursor
 
@@ -55,11 +59,11 @@ Add these **repository secrets** (Settings → Secrets and variables → Actions
 | `GMAIL_ADDRESS` | SMTP from |
 | `GMAIL_APP_PASSWORD` | Gmail App Password |
 | `EMAIL_TO` | Recipients (comma-separated OK) |
-| `RESUME_TXT` | Full resume text |
+| `RESUME_TXT` | Full resume text (written into `.env` for the job; not saved as a file) |
 
 Optional: `DAILY_COMPANIES`, `DAILY_TITLE_KEYWORDS`, `DAILY_MIN_SCORE`, `DAILY_MAX_JOBS`.
 
-Local one-shot: `uv run python run_daily.py`
+Local one-shot: `uv run python run_daily.py` (needs `RESUME_TXT` in `.env`).
 
 ## Notes
 

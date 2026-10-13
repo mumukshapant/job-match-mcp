@@ -23,7 +23,7 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
-      - name: Write secrets to .env and resume.txt
+      - name: Write secrets to .env
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
@@ -53,20 +53,33 @@ jobs:
           if missing:
               raise SystemExit(f"Missing GitHub secrets: {', '.join(missing)}")
 
+          def env_value(value: str) -> str:
+              # Resumes have newlines. A raw RESUME_TXT=line1\nline2 (real newlines) would
+              # break .env parsing. Values are double-quoted with \n / \" escaped so dotenv
+              # can load the full resume as one string. Same quoting for other string
+              # secrets for consistency.
+              escaped = (
+                  value.replace("\\", "\\\\")
+                  .replace('"', '\\"')
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+              )
+              return f'"{escaped}"'
+
           env_lines = [
-              f"ANTHROPIC_API_KEY={os.environ['ANTHROPIC_API_KEY']}",
-              f"BRAVE_API_KEY={os.environ['BRAVE_API_KEY']}",
-              f"GMAIL_ADDRESS={os.environ['GMAIL_ADDRESS']}",
-              f"GMAIL_APP_PASSWORD={os.environ['GMAIL_APP_PASSWORD']}",
-              f"EMAIL_TO={os.environ['EMAIL_TO']}",
-              f"DAILY_COMPANIES={os.environ.get('DAILY_COMPANIES') or 'databricks,stripe'}",
-              f"DAILY_TITLE_KEYWORDS={os.environ.get('DAILY_TITLE_KEYWORDS') or 'data engineer'}",
+              f"ANTHROPIC_API_KEY={env_value(os.environ['ANTHROPIC_API_KEY'])}",
+              f"BRAVE_API_KEY={env_value(os.environ['BRAVE_API_KEY'])}",
+              f"GMAIL_ADDRESS={env_value(os.environ['GMAIL_ADDRESS'])}",
+              f"GMAIL_APP_PASSWORD={env_value(os.environ['GMAIL_APP_PASSWORD'])}",
+              f"EMAIL_TO={env_value(os.environ['EMAIL_TO'])}",
+              f"RESUME_TXT={env_value(os.environ['RESUME_TXT'])}",
+              f"DAILY_COMPANIES={env_value(os.environ.get('DAILY_COMPANIES') or 'databricks,stripe')}",
+              f"DAILY_TITLE_KEYWORDS={env_value(os.environ.get('DAILY_TITLE_KEYWORDS') or 'data engineer')}",
               f"DAILY_MIN_SCORE={os.environ.get('DAILY_MIN_SCORE') or '60'}",
               f"DAILY_MAX_JOBS={os.environ.get('DAILY_MAX_JOBS') or '5'}",
           ]
           Path(".env").write_text("\n".join(env_lines) + "\n")
-          Path("resume.txt").write_text(os.environ["RESUME_TXT"])
-          print("Wrote .env and resume.txt")
+          print("Wrote .env")
           PY
 
       - name: Install deps and run daily job

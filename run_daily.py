@@ -16,20 +16,15 @@ from dotenv import load_dotenv
 PROJECT_DIR = Path(__file__).resolve().parent
 load_dotenv(PROJECT_DIR / ".env")
 
-LOG_DIR = PROJECT_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
-
 
 def _log(msg: str) -> None:
-    line = f"{datetime.now(timezone.utc).isoformat()} {msg}"
-    print(line)
-    with (LOG_DIR / "daily.log").open("a", encoding="utf-8") as f:
-        f.write(line + "\n")
+    print(f"{datetime.now(timezone.utc).isoformat()} {msg}")
 
 
 def _csv_list(name: str, default: str) -> list[str]:
     raw = os.environ.get(name, default)
     return [part.strip() for part in raw.split(",") if part.strip()]
+
 
 def main() -> int:
     import discovery
@@ -37,6 +32,11 @@ def main() -> int:
     import mailer
     import server
     import store
+
+    resume_text = os.environ.get("RESUME_TXT", "").strip()
+    if not resume_text:
+        _log("ERROR RESUME_TXT is required in the environment (resume is not read from a file).")
+        return 1
 
     title_keywords = _csv_list("DAILY_TITLE_KEYWORDS", "data engineer")
     min_score = int(os.environ.get("DAILY_MIN_SCORE", "60"))
@@ -70,6 +70,7 @@ def main() -> int:
     try:
         result = server.find_matching_jobs(
             list(companies),
+            resume_text=resume_text,
             title_keywords=title_keywords or None,
             min_score=min_score,
             max_jobs=max_jobs,

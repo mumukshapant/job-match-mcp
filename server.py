@@ -17,11 +17,6 @@ from datetime import datetime, timedelta, timezone
 
 mcp = MCPServer("resume-match-finder") #define mcp server name here
 
-@mcp.tool()
-def ping() -> str:
-    """Health check: returns 'pong'."""
-    return "pong"
-
 #capability 1: get_greenhouse_jobs
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True))
 def get_greenhouse_jobs(
@@ -63,19 +58,18 @@ def get_greenhouse_jobs(
 
 #capability 2: match_resume_to_job
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True))
-def match_resume_to_job(company: str, job_id: int) -> dict:
-    """Score how well the resume (resume.txt) matches one Greenhouse job.
+def match_resume_to_job(company: str, job_id: int, resume_text: str) -> dict:
+    """Score how well a resume matches one Greenhouse job.
 
     company: the Greenhouse board token, e.g. "stripe".
     job_id: the job's id, as returned by get_greenhouse_jobs.
 
-    Returns match_percentage (0-100) from a fixed rubric: skills 40, experience 25,
-    responsibilities 20, education 5, keywords 10. "blockers" lists hard gaps that cap the score.
+    Returns match_percentage (0-100) from a fixed rubric
     """
     board_token = company.strip().lower()
     try:
         job = greenhouse.fetch_job_description(board_token, job_id)
-        result = matcher.match(job["description"])
+        result = matcher.match(job["description"], resume_text)
     except (ValueError, httpx.HTTPError, anthropic.AnthropicError) as error:
         raise ToolError(str(error)) from error
 
@@ -95,6 +89,7 @@ def posted_at(job: dict) -> datetime:
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True))
 def find_matching_jobs(
     companies: list[str],
+    resume_text: str,
     title_keywords: list[str] | None = None,
     min_score: int = 60,
     max_jobs: int = 5,
@@ -107,6 +102,7 @@ def find_matching_jobs(
     score up to max_jobs in parallel (Tool 2) -> keep those >= min_score -> sort.
 
     companies: e.g. ["stripe", "airbnb"].
+    resume_text: full resume text (not stored; used only for this call).
     title_keywords: optional e.g. ["data engineer"].
     skip_senior_titles: default True
     min_score: default 80
@@ -161,7 +157,7 @@ def find_matching_jobs(
     def score_one(cand: dict) -> dict:
         try:
             job = greenhouse.fetch_job_description(cand["company"], cand["id"])
-            result = matcher.match(job["description"])
+            result = matcher.match(job["description"], resume_text)
         except (ValueError, httpx.HTTPError, anthropic.AnthropicError) as error:
             return {"error": f"{cand['company']}/{cand['id']}: {error}"}
         return {"company": cand["company"], "job_id": cand["id"],
