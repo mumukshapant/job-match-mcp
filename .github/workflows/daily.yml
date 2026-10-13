@@ -1,10 +1,8 @@
-# Runs once a day whenever GitHub delivers the schedule (no time gate — late is OK).
+# Started daily at 2:30 PM ET by cron-job.org (workflow_dispatch API call).
 
 name: Daily job matches email
 
 on:
-  schedule:
-    - cron: "30 12 * * *"   # ~once daily; GitHub may start late — job still runs
   workflow_dispatch:
 
 jobs:
@@ -22,6 +20,15 @@ jobs:
 
       - name: Set up Python
         run: uv python install 3.13
+
+      - name: Restore saved state (seen jobs, companies)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            seen_jobs.json
+            companies.json
+          key: job-state-${{ github.run_id }}
+          restore-keys: job-state-
 
       - name: Write secrets to .env and resume.txt
         env:
@@ -73,3 +80,12 @@ jobs:
         run: |
           echo "Eastern time now: $(TZ=America/New_York date)"
           uv run python run_daily.py
+
+      - name: Save state for tomorrow
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            seen_jobs.json
+            companies.json
+          key: job-state-${{ github.run_id }}
