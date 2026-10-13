@@ -1,10 +1,9 @@
-# Runs once a day whenever GitHub delivers the schedule (no time gate — late is OK).
+# Started daily at 2:30 PM ET by cron-job.org (workflow_dispatch API call).
+# State (companies / seen jobs) lives in Neon — no Actions cache needed.
 
 name: Daily job matches email
 
 on:
-  schedule:
-    - cron: "30 12 * * *"   # ~once daily; GitHub may start late — job still runs
   workflow_dispatch:
 
 jobs:

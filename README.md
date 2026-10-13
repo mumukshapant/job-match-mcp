@@ -5,7 +5,7 @@ Greenhouse-focused job matcher: discover boards, filter recent US roles, score t
 ## What it does
 
 - **MCP tools** (Cursor): list Greenhouse jobs, score one job, find matches across companies, send email
-- **Daily run** (`run_daily.py` + GitHub Actions): Brave Search discovery → score new jobs → Gmail digest
+- **Daily run** (`run_daily.py` + GitHub Actions via [cron-job.org](https://console.cron-job.org/dashboard)): Brave Search discovery → score new jobs → Gmail digest
 
 Resume text is passed in per call (MCP tool arg or `RESUME_TXT` env). It is not stored on the server.
 
@@ -46,9 +46,10 @@ Point MCP at this project (see [`.cursor/mcp.json`](.cursor/mcp.json)):
 }
 ```
 
-## Daily email (GitHub Actions)
+## Daily email (GitHub Actions + cron-job.org)
 
-Workflow: [`.github/workflows/daily.yml`](.github/workflows/daily.yml).
+Workflow: [`.github/workflows/daily.yml`](.github/workflows/daily.yml).  
+Triggered by [cron-job.org](https://console.cron-job.org/dashboard) calling `workflow_dispatch` (e.g. 2:30 PM ET). No GitHub `schedule:` cron.
 
 Add these **repository secrets** (Settings → Secrets and variables → Actions):
 
@@ -60,10 +61,11 @@ Add these **repository secrets** (Settings → Secrets and variables → Actions
 | `GMAIL_APP_PASSWORD` | Gmail App Password |
 | `EMAIL_TO` | Recipients (comma-separated OK) |
 | `RESUME_TXT` | Full resume text (written into `.env` for the job; not saved as a file) |
+| `DATABASE_URL` | Neon Postgres (companies + seen jobs) |
 
 Optional: `DAILY_COMPANIES`, `DAILY_TITLE_KEYWORDS`, `DAILY_MIN_SCORE`, `DAILY_MAX_JOBS`.
 
-Local one-shot: `uv run python run_daily.py` (needs `RESUME_TXT` in `.env`).
+Local one-shot: `uv run python run_daily.py` (needs `RESUME_TXT` and `DATABASE_URL` in `.env`).
 
 ## Notes
 
