@@ -31,6 +31,7 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           RESUME_TXT: ${{ secrets.RESUME_TXT }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DAILY_COMPANIES: ${{ secrets.DAILY_COMPANIES }}
           DAILY_TITLE_KEYWORDS: ${{ secrets.DAILY_TITLE_KEYWORDS }}
           DAILY_MIN_SCORE: ${{ secrets.DAILY_MIN_SCORE }}
@@ -48,6 +49,7 @@ jobs:
               "GMAIL_APP_PASSWORD",
               "EMAIL_TO",
               "RESUME_TXT",
+              "DATABASE_URL",
           ]
           missing = [k for k in required if not os.environ.get(k)]
           if missing:
@@ -73,6 +75,7 @@ jobs:
               f"GMAIL_APP_PASSWORD={env_value(os.environ['GMAIL_APP_PASSWORD'])}",
               f"EMAIL_TO={env_value(os.environ['EMAIL_TO'])}",
               f"RESUME_TXT={env_value(os.environ['RESUME_TXT'])}",
+              f"DATABASE_URL={env_value(os.environ['DATABASE_URL'])}",
               f"DAILY_COMPANIES={env_value(os.environ.get('DAILY_COMPANIES') or 'databricks,stripe')}",
               f"DAILY_TITLE_KEYWORDS={env_value(os.environ.get('DAILY_TITLE_KEYWORDS') or 'data engineer')}",
               f"DAILY_MIN_SCORE={os.environ.get('DAILY_MIN_SCORE') or '60'}",

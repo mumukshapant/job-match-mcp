@@ -44,7 +44,7 @@ def main() -> int:
     posted_within_days = int(os.environ.get("DAILY_POSTED_WITHIN_DAYS", "5"))
 
     # 1) Discover companies hiring for these roles; grow the saved watchlist
-    companies: dict[str, str] = store.load("companies.json", {})
+    companies = store.load_companies()
     for role in title_keywords:
         try:
             found = discovery.discover_boards(role)
@@ -61,10 +61,10 @@ def main() -> int:
                 _log(f"new company: {token} ({name})")
     for token in _csv_list("DAILY_COMPANIES", ""):  # optional fixed extras from .env
         companies.setdefault(token.lower(), token)
-    store.save("companies.json", companies)
+    store.save_companies(companies)
 
     # 2) Find and score new jobs, skipping ones already scored on earlier days
-    seen: set[int] = set(store.load("seen_jobs.json", []))
+    seen = store.load_seen()
     _log(f"start boards={len(companies)} keywords={title_keywords} min_score={min_score} "
          f"max_jobs={max_jobs} posted_within_days={posted_within_days} seen={len(seen)}")
     try:
@@ -94,7 +94,7 @@ def main() -> int:
             return 1  # don't mark as seen, so tomorrow retries
     else:
         _log("no new matches at/above min_score; skipping email")
-    store.save("seen_jobs.json", sorted(seen | set(result.get("scored_job_ids", []))))
+    store.add_seen(result.get("scored_job_ids", []))
     return 0
 
 
