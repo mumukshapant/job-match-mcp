@@ -38,7 +38,14 @@ def main() -> int:
     import server
     import store
 
-    title_keywords = _csv_list("DAILY_TITLE_KEYWORDS", "data engineer")
+    title_keywords = _csv_list(
+        "DAILY_TITLE_KEYWORDS",
+        "data engineer,data engineering,software engineer,software development engineer,"
+        "backend engineer,backend software engineer,platform engineer,data platform engineer,"
+        "AI engineer,AI infrastructure engineer,machine learning engineer,ML platform engineer,"
+        "forward deployed engineer,forward deployed software engineer,"
+        "fullstack engineer,full stack engineer,data scientist,analytics engineer",
+    )
     min_score = int(os.environ.get("DAILY_MIN_SCORE", "40"))
     max_jobs = int(os.environ.get("DAILY_MAX_JOBS", "5"))
     posted_within_days = int(os.environ.get("DAILY_POSTED_WITHIN_DAYS", "5"))
